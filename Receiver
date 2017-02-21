@@ -1,16 +1,13 @@
-/* Receiver 
-   This is the Receiver portion of the Wireless Temperature Project */
-   
-
 #include <LiquidCrystal.h>
 #include <Wire.h>
 #include <string.h>
+float oldAlarm;
 int pos = 0;
 char buffer[100];
 int num = 0;
 char temperature[50];
 char humidity[50];
-
+float alarmSet = 0;
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);   // initialize the library with the numbers of the interface pins
 void setup() {
   // put your setup code here, to run once:
@@ -39,22 +36,17 @@ void loop() {
     }
     else
     {
-      /*     Serial.print("pos =");
-           Serial.print(pos);
-          Serial.println(buffer[pos]);
-        int p = buffer[pos].atoi;
-        Serial.println(p);*/
       buffer[pos] = reading;
       pos++;
-
     }
   }
-}
-
+};
 
 
 void printToLCD()
 {
+  alarmSet = analogRead(0) / 18;
+
   Serial.print("***");
   Serial.println(temperature);
   int tmp = atoi(temperature) ;
@@ -64,31 +56,53 @@ void printToLCD()
   int f = (int) fahrenheit;
   Serial.println(celsius);
   Serial.println(f);
-
-
   //digitalRead(6);             // Reads the value of the pin, like below we are using a boolean
-  if (celsius > 25) {
+  if (celsius > alarmSet) {
     digitalWrite(6, HIGH);    // This writes a high to a pin or 5v
   }
   else {
     digitalWrite(6, LOW);     // This writes a low to a pin or grounds it
   }
- 
-  // Turn off the display: Blankin
-  // Display celsius on the top row
-  lcd.setCursor(0, 0);
-  //1234567890123456 digits for spaces on row
-  lcd.print("Temp in C= ");
-  lcd.print(celsius);
-  // Display fahrenheit to the bottom row
-  lcd.setCursor(0, 1);
-  //1234567890123456 digits for spaces on row
-  lcd.print("Temp in F= ");
-  lcd.print(fahrenheit);
-  // Turn on the display:
+
+  if (alarmSet == oldAlarm)
+  {
+    // Display celsius on the top row
+    lcd.setCursor(0, 0);
+    //1234567890123456 digits for spaces on row
+    lcd.print("Temp in C= ");
+    lcd.print(celsius);
+    // Display fahrenheit to the bottom row
+    lcd.setCursor(0, 1);
+    //1234567890123456 digits for spaces on row
+    lcd.print("Temp in F= ");
+    lcd.print(fahrenheit);
+    // Turn on the display:
+    Serial.println("the Alarm is ");
+    Serial.print(alarmSet);
+    Serial.println();
+  }
+  else
+  {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    //1234567890123456 digits for spaces on row
+    lcd.print("Alarm temp= ");
+    lcd.print(alarmSet);
+    // Display fahrenheit to the bottom row
+    lcd.setCursor(0, 1);
+    //1234567890123456 digits for spaces on row
+    lcd.print("  Please wait");
+
+    // Turn on the display:
+    Serial.println("The alarm Changed and the display froze");
+    Serial.print(alarmSet);
+    Serial.println();
 
 
+    delay(500);
+    oldAlarm = alarmSet;
 
+  }
 };
 
 void processLine(char *s)
@@ -120,14 +134,14 @@ void processLine(char *s)
       {
         strcpy(temperature, f);
       }
-     /* else if (number == 1)
-      {
-        strcpy(humidity, f);
-      }
+      /* else if (number == 1)
+        {
+         strcpy(humidity, f);                     More sensors
+        }
       */
-    //  Serial.print(number++);
-    //  Serial.print(" ");
-    //  Serial.println(f);
+      //  Serial.print(number++);
+      //  Serial.print(" ");
+      //  Serial.println(f);
     }
 
   }
