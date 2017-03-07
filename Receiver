@@ -2,7 +2,6 @@
 #include <Wire.h>
 #include <String.h>
 float celsius;
-
 int oldAlarm;
 int pos = 0;
 char buffer[100];
@@ -21,37 +20,27 @@ void setup() {
   // delay(500);
   lcd.begin(16, 2);
   lcd.display();
-     attachInterrupt(0, cw, FALLING);
-       
+  attachInterrupt(0, cw, FALLING);
+
   attachInterrupt(1, ccw, FALLING);
   // set up the LCD's number of columns and rows:
 }
-
 void loop() {
-
- 
   // put your main code here, to run repeatedly:
   if (Serial.available() > 0)
   {
-  int reading = Serial.read();         // read it and store it in 'val'
+    int reading = Serial.read();         // read it and store it in 'val'
     if ( reading == '\r' )
     {
       //nothing
     }
     else if ( reading == '\n' )
     {
-
- 
       buffer[pos] = '\0';
       pos = 0;
       processLine(buffer);
-
-     
       mathPart();
       printToLCD();
-
-
-     
     }
     else
     {
@@ -63,10 +52,7 @@ void loop() {
 void mathPart()
 {
   int tmp = atoi(temperature) ;
- 
   celsius = tmp * 0.0625;
-
-
   if (celsius > alarmSet) {
     digitalWrite(6, HIGH);    // This writes a high to a pin or 5v
   }
@@ -74,33 +60,32 @@ void mathPart()
     digitalWrite(6, LOW);     // This writes a low to a pin or grounds it
   }
 }
-
 void printToLCD()
- 
-  {
-    // Display celsius on the top row
-    lcd.setCursor(0, 0);
-    //1234567890123456 digits for spaces on row
-    lcd.print("Temp in C= ");
-    lcd.print(celsius);
-    // Display fahrenheit to the bottom row
-  }
-
+{
+  // Display celsius on the top row
+  lcd.setCursor(0, 0);
+  //1234567890123456 digits for spaces on row
+  lcd.print("TempinC= ");
+  lcd.print(celsius);
+  lcd.print((char)223);
+}
 void processLine(char *s)
 {
   int number = 0;
   Serial.print(num++);
   Serial.print(" ");
   Serial.println(s);
+  Serial.print("*****TEMP/HUM*****");
   char *f;
   char buffer[100];
   char *t = buffer;
   strcpy(t, s);
-  Serial.print("* ");
-  Serial.println(t);\
+  //Serial.print("* ");
+  //Serial.println(t);
   for (;;)
   {
     f = strsep(&t, ",");
+    Serial.println(" ");
     if (f == NULL)
     {
       Serial.println("f==NULL");
@@ -111,40 +96,35 @@ void processLine(char *s)
       if (number == 0)
       {
         strcpy(temperature, f);
+        Serial.print(temperature);
       }
-      /* else if (number == 1)
-        {
-         strcpy(humidity, f);                     More sensors
-        }
-      */
-      //  Serial.print(number++);
-      //  Serial.print(" ");
-      //  Serial.println(f);
+      else if (number == 1)
+      {
+        strcpy(humidity, f);                    // More sensors
+        Serial.print(humidity);
+      }
     }
-
   }
 }
-
 void cw()
 {
   int b = digitalRead(3);
   if (b == HIGH)
   {
     alarmSet++;
-
-   
   }
   if (alarmSet > max_temp_celsius)
     alarmSet = max_temp_celsius;
 
   lcd.clear();
-    lcd.setCursor(0, 0);
-    //1234567890123456 digits for spaces on row
-    lcd.print("Alarm temp= ");
-    lcd.print(alarmSet);
-    // Display fahrenheit to the bottom row
-
- 
+  lcd.setCursor(0, 0);
+  //1234567890123456 digits for spaces on row
+  lcd.print("Alarm temp= ");
+  lcd.print(alarmSet);
+  lcd.setCursor(0, 1);
+  lcd.print("Alarm Set @ ");
+  lcd.print(alarmSet);
+ lcd.print((char)223);
 }
 
 void ccw()
@@ -156,11 +136,14 @@ void ccw()
   }
   if (alarmSet < min_temp_celsius)
     alarmSet = min_temp_celsius;
-   
-      lcd.clear();
-    lcd.setCursor(0, 0);
-    //1234567890123456 digits for spaces on row
-    lcd.print("Alarm temp= ");
-    lcd.print(alarmSet);
-    // Display fahrenheit to the bottom row
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  //1234567890123456 digits for spaces on row
+  lcd.print("Alarm temp= ");
+  lcd.print(alarmSet);
+  lcd.setCursor(0, 1);
+  lcd.print("Alarm Set @ ");
+  lcd.print(alarmSet);
+   lcd.print((char)223);
 }
