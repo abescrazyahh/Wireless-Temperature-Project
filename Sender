@@ -1,9 +1,5 @@
-/* Sender 
-   This will be the sender portion of the ETRO Project Class */
-
-
-
-/*
+/* Sender
+   This will be the sender portion of the ETRO Project Class
   The circuit:
   LCD RS pin to digital pin 12
   LCD Enable pin to digital pin 11
@@ -15,7 +11,6 @@
   10K resistor:
   ends to +5V and ground
   wiper to LCD VO pin (pin 3)
-
   Tmp100 Sensor layout
   (1)SCL=pin A5 wite
   (2)GND=GND
@@ -34,10 +29,7 @@ int ResolutionBits = 10;                 // Resolution set
 
 void setup() {
   //I2C scanner
-  /*Wire.begin();
-    Serial.begin(9600);
-    while (!Serial);                      // wait for serial monitor
-    Serial.println("\nI2C Scanner");*/
+
   Wire.begin();                          // Initialize I2C communication as MASTER
   Serial.begin(115200);                    // Initialize Serial communication, set baud rate = 9600
   Wire.beginTransmission(Addr);          // Start I2C Transmission
@@ -60,29 +52,15 @@ void SetResolution() {
 }
 void loop() {
   // wait 5 seconds for next scan
-
   Wire.requestFrom(tmpAddress, 2);
   byte MSB = Wire.read();
   byte LSB = Wire.read();
-
-  int TemperatureSum = ((MSB << 8) | LSB) >> 4;
-
-
-  // Serial.println(TemperatureSum); //sending temp value via bluetooth
-
-
-/*
-  if (TemperatureSum == lastTemperatureSum )
-  {
-    //the code does nothing
-  }
-  else if (TemperatureSum != lastTemperatureSum)
-  */
-  {
-    Serial.println(TemperatureSum);
-   // Serial.println(",temp, humid,HHMMSS, 0110");
-       lastTemperatureSum = TemperatureSum;
-
-  };
+  // int TemperatureSum = ((MSB << 8) | LSB) >> 4;   remove //
+  int TemperatureSum = 408;  //remove when ready
+  int humiditySum = 321;      //Replace with Humidity sensor when ready.
+  Serial.print(TemperatureSum);
+  Serial.print(",");
+  Serial.println(humiditySum); 
+  // Serial.println(",temp, humid,HHMMSS, 0110"); Format/////
   delay(1000);
 }
