@@ -1,24 +1,36 @@
+Receiver:
 
 #include <LiquidCrystal.h>
 #include <Wire.h>
-#include <string.h>
-float oldAlarm;
+#include <String.h>
+int oldAlarm;
+float celsius;
+float fahrenheit;
 int pos = 0;
 char buffer[100];
 int num = 0;
 char temperature[50];
 char humidity[50];
-float alarmSet = 0;
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);   // initialize the library with the numbers of the interface pins
+volatile int alarmSet = 0;
+LiquidCrystal lcd(12, 11, 10, 9, 8, 7);   // initialize the library with the numbers of the interface pins
+const int max_temp_celsius = 50;
+const int min_temp_celsius = 0;
+
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   pinMode(6, OUTPUT);
-  delay(500);
+  // delay(500);
   lcd.begin(16, 2);
   lcd.display();
+  attachInterrupt(0, cw, FALLING);
+  attachInterrupt(1, ccw, FALLING);
   // set up the LCD's number of columns and rows:
 }
+
+
+
 void loop() {
   // put your main code here, to run repeatedly:
   if (Serial.available() > 0)
@@ -33,6 +45,7 @@ void loop() {
       buffer[pos] = '\0';
       pos = 0;
       processLine(buffer);
+      rawCalcTMP();
       printToLCD();
     }
     else
@@ -41,22 +54,22 @@ void loop() {
       pos++;
     }
   }
-};
+}
+
+void rawCalcTMP()
+{
+  int tmp = atoi(temperature) ;
+  Serial.println(tmp);
+  celsius = tmp * 0.0625;
+  fahrenheit = (1.8 * celsius) + 32;
+  int f = (int) fahrenheit;
+}
 
 
 void printToLCD()
 {
-  alarmSet = analogRead(0) / 18;
+  // alarmSet = digitalRead(3) / 18;
 
-  Serial.print("***");
-  Serial.println(temperature);
-  int tmp = atoi(temperature) ;
-  Serial.println(tmp);
-  float celsius = tmp * 0.0625;
-  float fahrenheit = (1.8 * celsius) + 32;
-  int f = (int) fahrenheit;
-  Serial.println(celsius);
-  Serial.println(f);
   //digitalRead(6);             // Reads the value of the pin, like below we are using a boolean
   if (celsius > alarmSet) {
     digitalWrite(6, HIGH);    // This writes a high to a pin or 5v
@@ -64,46 +77,17 @@ void printToLCD()
   else {
     digitalWrite(6, LOW);     // This writes a low to a pin or grounds it
   }
-
-  if (alarmSet == oldAlarm)
-  {
-    // Display celsius on the top row
-    lcd.setCursor(0, 0);
-    //1234567890123456 digits for spaces on row
-    lcd.print("Temp in C= ");
-    lcd.print(celsius);
-    // Display fahrenheit to the bottom row
-    lcd.setCursor(0, 1);
-    //1234567890123456 digits for spaces on row
-    lcd.print("Temp in F= ");
-    lcd.print(fahrenheit);
-    // Turn on the display:
-    Serial.println("the Alarm is ");
-    Serial.print(alarmSet);
-    Serial.println();
-  }
-  else
-  {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    //1234567890123456 digits for spaces on row
-    lcd.print("Alarm temp= ");
-    lcd.print(alarmSet);
-    // Display fahrenheit to the bottom row
-    lcd.setCursor(0, 1);
-    //1234567890123456 digits for spaces on row
-    lcd.print("  Please wait");
-
-    // Turn on the display:
-    Serial.println("The alarm Changed and the display froze");
-    Serial.print(alarmSet);
-    Serial.println();
-
-
-    delay(500);
-    oldAlarm = alarmSet;
-
-  }
+  // Display celsius on the top row
+  lcd.setCursor(0, 0);
+  //1234567890123456 digits for spaces on row
+  lcd.print("Temp in C= ");
+  lcd.print(celsius);
+  // Display fahrenheit to the bottom row
+  lcd.setCursor(0, 1);
+  //1234567890123456 digits for spaces on row
+  lcd.print("Temp in F= ");
+  lcd.print(fahrenheit);
+  // Turn on the display:
 };
 
 void processLine(char *s)
@@ -146,4 +130,44 @@ void processLine(char *s)
     }
 
   }
+}
+
+void encoderVal()
+{
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  //1234567890123456 digits for spaces on row
+  lcd.print("Alarm temp= ");
+  lcd.print(alarmSet);
+  // Display fahrenheit to the bottom row
+  lcd.setCursor(0, 1);
+  lcd.print("  Alarm Set");
+delay(250);
+
+}
+
+void cw()
+{
+  int b = digitalRead(3);
+  if (b == HIGH)
+  {
+    alarmSet++;
+  }
+  if (alarmSet > max_temp_celsius)
+    alarmSet = max_temp_celsius;
+  encoderVal();
+}
+
+void ccw()
+{
+  int a = digitalRead(2);
+  if (a == HIGH)
+  {
+    alarmSet--;
+  }
+  if (alarmSet < min_temp_celsius)
+    alarmSet = min_temp_celsius;
+
+  encoderVal();
 }
