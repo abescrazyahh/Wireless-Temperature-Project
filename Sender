@@ -20,13 +20,26 @@
   (6)SDA=pin A4 green
 */
 
+//Libraries
+#include <DHT.h>;
+
+//Constants
+#define DHTPIN 2     // what pin we're connected to
+#define DHTTYPE DHT11   // DHT 11 (AM2302)
+DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
+
+
+//Variables
+
+
+
 #include <LiquidCrystal.h>
 #include <Wire.h>
 #define Addr 0x4F                        // id = 79
 int lastTemperatureSum;
 int tmpAddress = B1001000;               // Slave Addresses set
 int ResolutionBits = 10;                 // Resolution set
-
+int chk;
 void setup() {
   //I2C scanner
 
@@ -36,6 +49,7 @@ void setup() {
   Wire.write(0x01);                      // Select configuration register
   Wire.write(0x60);                      // Set continuous conversion, comparator mode, 12-bit resolution
   Wire.endTransmission();                // Stop I2C Transmission
+  dht.begin();
   delay(500);
 }
 void SetResolution() {
@@ -50,17 +64,24 @@ void SetResolution() {
   Wire.write((byte)0x00);
   Wire.endTransmission();                // Stop I2C Transmission
 }
+
+
+
 void loop() {
   // wait 5 seconds for next scan
   Wire.requestFrom(tmpAddress, 2);
   byte MSB = Wire.read();
   byte LSB = Wire.read();
-  // int TemperatureSum = ((MSB << 8) | LSB) >> 4;   remove //
-  int TemperatureSum = 408;  //remove when ready
-  int humiditySum = 321;      //Replace with Humidity sensor when ready.
+  int TemperatureSum = ((MSB << 8) | LSB) >> 4; 
+  //int TemperatureSum = 408;  //remove when ready
+  int humiditySum = dht.readHumidity();     //Replace with Humidity sensor when ready.
+  int TemperatureSum2 = dht.readTemperature();  //remove when ready
+
   Serial.print(TemperatureSum);
+ Serial.print(",");
+  Serial.print(humiditySum);
   Serial.print(",");
-  Serial.println(humiditySum); 
-  // Serial.println(",temp, humid,HHMMSS, 0110"); Format/////
+ Serial.println(TemperatureSum2);
+  //Serial.println(",temp, humid,HHMMSS, 0110"); Format/////
   delay(1000);
 }
