@@ -2,11 +2,14 @@
 #include <Wire.h>
 #include <String.h>
 float celsius;
+float printHumidity;
+float printTemperature2;
 int oldAlarm;
 int pos = 0;
 char buffer[100];
 int num = 0;
 char temperature[50];
+char temperature2[50];
 char humidity[50];
 volatile int alarmSet = 0;
 LiquidCrystal lcd(12, 11, 10, 9, 8, 7);   // initialize the library with the numbers of the interface pins
@@ -51,8 +54,12 @@ void loop() {
 }
 void mathPart()
 {
-  int tmp = atoi(temperature) ;
-  celsius = tmp * 0.0625;
+  int tmp1 = atoi(temperature);
+  int tmp2 = atoi(temperature2);
+  int hum1 = atoi(humidity);
+  printHumidity = hum1;
+  printTemperature2 = tmp2;
+  celsius = tmp1 * 0.0625;
   if (celsius > alarmSet) {
     digitalWrite(6, HIGH);    // This writes a high to a pin or 5v
   }
@@ -62,12 +69,19 @@ void mathPart()
 }
 void printToLCD()
 {
+  //lcd.clear();
   // Display celsius on the top row
   lcd.setCursor(0, 0);
   //1234567890123456 digits for spaces on row
-  lcd.print("TempinC= ");
+  lcd.print("T1=");
   lcd.print(celsius);
-  lcd.print((char)223);
+ 
+  lcd.print("T2=");
+  lcd.print(printTemperature2);
+  
+  lcd.setCursor(0, 1);
+  lcd.print("Humidity = ");
+  lcd.print(printHumidity);
 }
 void processLine(char *s)
 {
@@ -97,15 +111,26 @@ void processLine(char *s)
       {
         strcpy(temperature, f);
         Serial.print(temperature);
+        number++;
       }
-      else if (number == 1)
+   else if (number == 1)
+    {
+      strcpy(humidity, f);                    // More sensors
+       Serial.print(humidity);
+       number++;
+     }
+      else if (number == 2)
       {
-        strcpy(humidity, f);                    // More sensors
-        Serial.print(humidity);
+        strcpy(temperature2, f);
+        Serial.print(temperature2);
+        number++;
       }
+
     }
   }
 }
+
+
 void cw()
 {
   int b = digitalRead(3);
@@ -124,7 +149,7 @@ void cw()
   lcd.setCursor(0, 1);
   lcd.print("Alarm Set @ ");
   lcd.print(alarmSet);
- lcd.print((char)223);
+  lcd.print((char)223);
 }
 
 void ccw()
@@ -145,5 +170,5 @@ void ccw()
   lcd.setCursor(0, 1);
   lcd.print("Alarm Set @ ");
   lcd.print(alarmSet);
-   lcd.print((char)223);
+  lcd.print((char)223);
 }
