@@ -22,29 +22,35 @@
 
 //Libraries
 #include <DHT.h>;
-
+#include <SPI.h>
+#include <SD.h>
 //Constants
 #define DHTPIN 2     // what pin we're connected to
 #define DHTTYPE DHT11   // DHT 11 (AM2302)
 DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
-
-
-//Variables
-
-
-
 #include <LiquidCrystal.h>
 #include <Wire.h>
 #define Addr 0x4F                        // id = 79
+float celsius;
+const int chipSelect = 8;
+const int cardDetect = 9;
+bool alreadyBegan = false;  // SD.begin() misbehaves if not first call
+char fileName[] = "demoFile.txt";
 int lastTemperatureSum;
 int tmpAddress = B1001000;               // Slave Addresses set
 int ResolutionBits = 10;                 // Resolution set
 int chk;
-void setup() {
-  //I2C scanner
 
-  Wire.begin();                          // Initialize I2C communication as MASTER
-  Serial.begin(115200);                    // Initialize Serial communication, set baud rate = 9600
+
+void setup() {
+  Wire.begin();
+  Serial.begin(115200);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+  Serial.print("Initializing SD card...");
+  pinMode(cardDetect, INPUT);
+  initializeCard();
   Wire.beginTransmission(Addr);          // Start I2C Transmission
   Wire.write(0x01);                      // Select configuration register
   Wire.write(0x60);                      // Set continuous conversion, comparator mode, 12-bit resolution
@@ -52,36 +58,94 @@ void setup() {
   dht.begin();
   delay(500);
 }
+
 void SetResolution() {
   if (ResolutionBits < 9 || ResolutionBits > 12) exit;
   Wire.beginTransmission(tmpAddress);    // resets to reading the temperature
   Wire.write(B00000001);                 // addresses the configuration register
-
   Wire.write((ResolutionBits - 9) << 5); // writes the resolution bits
   Wire.endTransmission();
-
   Wire.beginTransmission(tmpAddress);    // resets to reading the temperature
   Wire.write((byte)0x00);
   Wire.endTransmission();                // Stop I2C Transmission
 }
 
-
-
 void loop() {
+
+  if (!digitalRead(cardDetect))
+  {
+    initializeCard();
+  }
+
   // wait 5 seconds for next scan
   Wire.requestFrom(tmpAddress, 2);
   byte MSB = Wire.read();
   byte LSB = Wire.read();
-  int TemperatureSum = ((MSB << 8) | LSB) >> 4; 
+  int TemperatureSum = ((MSB << 8) | LSB) >> 4;
   //int TemperatureSum = 408;  //remove when ready
   int humiditySum = dht.readHumidity();     //Replace with Humidity sensor when ready.
   int TemperatureSum2 = dht.readTemperature();  //remove when ready
-
   Serial.print(TemperatureSum);
- Serial.print(",");
+  Serial.print(",");
   Serial.print(humiditySum);
   Serial.print(",");
- Serial.println(TemperatureSum2);
+  Serial.println(TemperatureSum2);
   //Serial.println(",temp, humid,HHMMSS, 0110"); Format/////
+  celsius = TemperatureSum * 0.0625;
+  // open the file. note that only one file can be open at a time,
+  // so you have to close this one before opening another.
+  File dataFile = SD.open(fileName, FILE_WRITE);
+  // if the file is available, write to it:
+  if (dataFile) {
+    dataFile.println(celsius);
+    dataFile.println(humiditySum);
+    dataFile.close();
+    // print to the serial port too:
+  }
+  // if the file isn't open, pop up an error:
+  else {
+    Serial.print("error opening ");
+    Serial.println(fileName);
+  }
   delay(1000);
+}
+
+
+
+
+void initializeCard(void)
+{
+  Serial.print(F("Initializing SD card..."));
+
+  // Is there even a card?
+  if (!digitalRead(cardDetect))
+  {
+    Serial.println(F("No card detected. Waiting for card."));
+    while (!digitalRead(cardDetect));
+    delay(250); // 'Debounce insertion'
+  }
+  // Card seems to exist.  begin() returns failure
+  // even if it worked if it's not the first call.
+  if (!SD.begin(chipSelect) && !alreadyBegan)  // begin uses half-speed...
+  {
+    Serial.println(F("Initialization failed!"));
+    initializeCard(); // Possible infinite retry loop is as valid as anything
+  }
+  else
+  {
+    alreadyBegan = true;
+  }
+  Serial.println(F("Initialization done."));
+
+  Serial.print(fileName);
+  if (SD.exists(fileName))
+  {
+    Serial.println(F(" exists."));
+  }
+  else
+  {
+    Serial.println(F(" doesn't exist. Creating."));
+  }
+  Serial.print("Opening file: ");
+  Serial.println(fileName);
 }
