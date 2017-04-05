@@ -1,10 +1,22 @@
-#include <LiquidCrystal.h>
-#include <Wire.h>
 #include <String.h>
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+#include <Wire.h>
+#include <SPI.h>
+#include <SD.h>
+
+const int chipSelect = 8;
+const int cardDetect = 9;
+bool alreadyBegan = false;  // SD.begin() misbehaves if not first call
+char fileName[] = "demoFile.txt";
+
 float celsius;
+float lastcelsius;
 float printHumidity;
+float lastprintHumidity;
 float printTemperature2;
 int oldAlarm;
+int lastalarmSet;
 int pos = 0;
 char buffer[100];
 int num = 0;
@@ -12,24 +24,26 @@ char temperature[50];
 char temperature2[50];
 char humidity[50];
 volatile int alarmSet = 0;
-LiquidCrystal lcd(12, 11, 10, 9, 8, 7);   // initialize the library with the numbers of the interface pins
 const int max_temp_celsius = 50;
 const int min_temp_celsius = 0;
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(115200);
-  pinMode(6, OUTPUT);
-  // delay(500);
-  lcd.begin(16, 2);
-  lcd.display();
-  attachInterrupt(0, cw, FALLING);
+  lcd.init();
+  lcd.backlight();
+  Wire.begin();
 
+  pinMode(cardDetect, INPUT);
+
+  Serial.begin(115200);
+  attachInterrupt(0, cw, FALLING);
   attachInterrupt(1, ccw, FALLING);
   // set up the LCD's number of columns and rows:
+  pinMode(6, OUTPUT);
+
 }
 void loop() {
-  // put your main code here, to run repeatedly:
+
   if (Serial.available() > 0)
   {
     int reading = Serial.read();         // read it and store it in 'val'
@@ -42,7 +56,9 @@ void loop() {
       buffer[pos] = '\0';
       pos = 0;
       processLine(buffer);
-      mathPart();
+      mathPart();  
+      sdCard();
+      alarmPrintToLCD();
       printToLCD();
     }
     else
@@ -67,22 +83,64 @@ void mathPart()
     digitalWrite(6, LOW);     // This writes a low to a pin or grounds it
   }
 }
+
+void alarmPrintToLCD()
+{
+  if (alarmSet != oldAlarm)
+  {
+    lcd.clear();
+    // Display celsius on the top row
+    lcd.setCursor(0, 0);
+    lcd.print("Alarm Set: ");
+    lcd.print(alarmSet);
+
+    oldAlarm = alarmSet;
+    delay(250);
+  }
+}
+
+void sdCard()
+{
+  if (!digitalRead(cardDetect))
+  {
+    initializeCard();
+  }
+   File dataFile = SD.open(fileName, FILE_WRITE);
+  // if the file is available, write to it:
+  if (dataFile) {
+    dataFile.println(celsius);
+    dataFile.println(printHumidity);
+    dataFile.close();
+    // print to the serial port too:
+  }
+  // if the file isn't open, pop up an error:
+  else {
+    Serial.print("error opening ");
+    Serial.println(fileName);
+  }
+  delay(1000);
+}
+
+
 void printToLCD()
 {
-  //lcd.clear();
-  // Display celsius on the top row
-  lcd.setCursor(0, 0);
-  //1234567890123456 digits for spaces on row
-  lcd.print("T1=");
-  lcd.print(celsius);
- 
-  lcd.print("T2=");
-  lcd.print(printTemperature2);
-  
-  lcd.setCursor(0, 1);
-  lcd.print("Humidity = ");
-  lcd.print(printHumidity);
+  if (celsius != lastcelsius || printHumidity != lastprintHumidity)
+  {
+    lcd.clear();
+    // Display celsius on the top row
+    lcd.setCursor(0, 0);
+    lcd.print("  Temp   = ");
+    lcd.print(celsius);
+
+    lcd.setCursor(0, 1);
+    lcd.print("Humidity = ");
+    lcd.print(printHumidity);
+    lastcelsius = celsius;
+    lastprintHumidity = printHumidity;
+  }
+
 }
+
 void processLine(char *s)
 {
   int number = 0;
@@ -113,19 +171,18 @@ void processLine(char *s)
         Serial.print(temperature);
         number++;
       }
-   else if (number == 1)
-    {
-      strcpy(humidity, f);                    // More sensors
-       Serial.print(humidity);
-       number++;
-     }
+      else if (number == 1)
+      {
+        strcpy(humidity, f);                    // More sensors
+        Serial.print(humidity);
+        number++;
+      }
       else if (number == 2)
       {
         strcpy(temperature2, f);
         Serial.print(temperature2);
         number++;
       }
-
     }
   }
 }
@@ -138,18 +195,6 @@ void cw()
   {
     alarmSet++;
   }
-  if (alarmSet > max_temp_celsius)
-    alarmSet = max_temp_celsius;
-
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  //1234567890123456 digits for spaces on row
-  lcd.print("Alarm temp= ");
-  lcd.print(alarmSet);
-  lcd.setCursor(0, 1);
-  lcd.print("Alarm Set @ ");
-  lcd.print(alarmSet);
-  lcd.print((char)223);
 }
 
 void ccw()
@@ -159,16 +204,51 @@ void ccw()
   {
     alarmSet--;
   }
-  if (alarmSet < min_temp_celsius)
-    alarmSet = min_temp_celsius;
-
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  //1234567890123456 digits for spaces on row
-  lcd.print("Alarm temp= ");
-  lcd.print(alarmSet);
-  lcd.setCursor(0, 1);
-  lcd.print("Alarm Set @ ");
-  lcd.print(alarmSet);
-  lcd.print((char)223);
 }
+
+void initializeCard(void)
+{
+  Serial.print(F("Initializing SD card..."));
+
+  // Is there even a card?
+  if (!digitalRead(cardDetect))
+  {
+     lcd.clear();
+    // Display celsius on the top row
+    lcd.setCursor(0, 0);
+    lcd.print("   No SD Card");
+    lcd.setCursor(0, 1);
+    lcd.print("    Stand by ");
+    Serial.println(F("No card detected. Waiting for card."));
+    while (!digitalRead(cardDetect));
+    delay(250); // 'Debounce insertion'
+  }
+  // Card seems to exist.  begin() returns failure
+  // even if it worked if it's not the first call.
+  if (!SD.begin(chipSelect) && !alreadyBegan)  // begin uses half-speed...
+  {
+    Serial.println(F("Initialization failed!"));
+    initializeCard(); // Possible infinite retry loop is as valid as anything
+  }
+  else
+  {
+    alreadyBegan = true;
+  }
+  Serial.println(F("Initialization done."));
+
+  Serial.print(fileName);
+  if (SD.exists(fileName))
+  {
+    Serial.println(F(" exists."));
+  }
+  else
+  {
+    Serial.println(F(" doesn't exist. Creating."));
+  }
+  Serial.print("Opening file: ");
+  Serial.println(fileName);
+}
+
+
+
+
