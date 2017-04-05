@@ -38,6 +38,7 @@ void setup() {
   Serial.begin(115200);
   attachInterrupt(0, cw, FALLING);
   attachInterrupt(1, ccw, FALLING);
+  
   // set up the LCD's number of columns and rows:
   pinMode(6, OUTPUT);
 
@@ -56,7 +57,7 @@ void loop() {
       buffer[pos] = '\0';
       pos = 0;
       processLine(buffer);
-      mathPart();  
+      mathPart();
       sdCard();
       alarmPrintToLCD();
       printToLCD();
@@ -86,7 +87,7 @@ void mathPart()
 
 void alarmPrintToLCD()
 {
-  if (alarmSet != oldAlarm)
+  while (alarmSet != oldAlarm)
   {
     lcd.clear();
     // Display celsius on the top row
@@ -95,7 +96,7 @@ void alarmPrintToLCD()
     lcd.print(alarmSet);
 
     oldAlarm = alarmSet;
-    delay(250);
+    delay(325);
   }
 }
 
@@ -105,7 +106,7 @@ void sdCard()
   {
     initializeCard();
   }
-   File dataFile = SD.open(fileName, FILE_WRITE);
+  File dataFile = SD.open(fileName, FILE_WRITE);
   // if the file is available, write to it:
   if (dataFile) {
     dataFile.println(celsius);
@@ -118,7 +119,7 @@ void sdCard()
     Serial.print("error opening ");
     Serial.println(fileName);
   }
-  delay(1000);
+  delay(100);
 }
 
 
@@ -213,7 +214,7 @@ void initializeCard(void)
   // Is there even a card?
   if (!digitalRead(cardDetect))
   {
-     lcd.clear();
+    lcd.clear();
     // Display celsius on the top row
     lcd.setCursor(0, 0);
     lcd.print("   No SD Card");
@@ -221,7 +222,7 @@ void initializeCard(void)
     lcd.print("    Stand by ");
     Serial.println(F("No card detected. Waiting for card."));
     while (!digitalRead(cardDetect));
-    delay(250); // 'Debounce insertion'
+    delay(100); // 'Debounce insertion'
   }
   // Card seems to exist.  begin() returns failure
   // even if it worked if it's not the first call.
