@@ -7,15 +7,15 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #include <Time.h>
 
 unsigned long current_Time;
-unsigned long LCD_Period = (2 * 1000);
-unsigned long SD_Period = (5 * 60000);
+unsigned long LCD_Period = (1 * 1000);
+unsigned long SD_Period = (5 * 1000);
 unsigned long refresh_LCD_Time;
 unsigned long refresh_SD_Time;
 
 const int chipSelect = 8;
 const int cardDetect = 9;
 bool alreadyBegan = false;  // SD.begin() misbehaves if not first call
-char fileName[] = "DataFile.txt";
+char fileName[] = "AbeFile.txt";
 float celsius;
 int count = 0;
 float lastcelsius;
@@ -68,6 +68,11 @@ void loop() {
       processLine(buffer);
       mathPart();
       alarmPrintToLCD();
+        if (!digitalRead(cardDetect))
+  {
+    initializeCard();
+  }
+  
       if ( current_Time > refresh_LCD_Time)
       {
         refresh_LCD_Time += LCD_Period;
@@ -125,10 +130,6 @@ void alarmPrintToLCD()
 void sdCard()
 {
 
-  if (!digitalRead(cardDetect))
-  {
-    initializeCard();
-  }
 
   File dataFile = SD.open(fileName, FILE_WRITE);
   // if the file is available, write to it:
@@ -160,6 +161,7 @@ void sdCard()
 
 void printToLCD()
 {
+  
   if (celsius != lastcelsius || printHumidity != lastprintHumidity)
     lcd.clear();
   // Display celsius on the top row
