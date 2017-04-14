@@ -6,24 +6,18 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #include <SD.h>
 #include <Time.h>
 
+unsigned long current_Time;
+unsigned long LCD_Period = (2 * 1000);
+unsigned long SD_Period = (5 * 60000);
+unsigned long refresh_LCD_Time;
+unsigned long refresh_SD_Time;
+
 const int chipSelect = 8;
 const int cardDetect = 9;
 bool alreadyBegan = false;  // SD.begin() misbehaves if not first call
 char fileName[] = "DataFile.txt";
-const int buttonPin = 4;
-long previousMillis = 0;        // will store last time LED was updated
-int buttonState = LOW;             // the current reading from the input pin
-int lastButtonState = HIGH;   // the previous reading from the input pin
-long interval = 1000;           // interval at which to blink (milliseconds)
-long lastDebounceTime = 0;  // the last time the output pin was toggled
-long debounceDelay = 50;    // the debounce time; increase if the output flickers
-int reading;
-int ledState = LOW;
 float celsius;
-float fff;
-int x;
 int count = 0;
-float lastfff;
 float lastcelsius;
 float printHumidity;
 float lastprintHumidity;
@@ -47,17 +41,19 @@ void setup() {
   Wire.begin();
 
   pinMode(cardDetect, INPUT);
-
   Serial.begin(115200);
   attachInterrupt(0, cw, FALLING);
   attachInterrupt(1, ccw, FALLING);
 
-  // set up the LCD's number of columns and rows:
-  pinMode(6, OUTPUT);
+  current_Time = millis();
+  refresh_LCD_Time = current_Time + LCD_Period;
+  refresh_SD_Time = current_Time + SD_Period;
 
+  pinMode(6, OUTPUT);
+  pinMode(10, OUTPUT);
 }
 void loop() {
-
+  current_Time = millis ();
   if (Serial.available() > 0)
   {
     int reading = Serial.read();         // read it and store it in 'val'
@@ -71,10 +67,20 @@ void loop() {
       pos = 0;
       processLine(buffer);
       mathPart();
-      sdCard();
       alarmPrintToLCD();
+      if ( current_Time > refresh_LCD_Time)
+      {
+        refresh_LCD_Time += LCD_Period;
+        printToLCD();
+      }
+      if ( current_Time > refresh_SD_Time)
+      {
+        refresh_SD_Time += SD_Period;
+        digitalWrite(10, HIGH);
+        sdCard();
+        digitalWrite(10, LOW);
+      }
 
-      printToLCD();
     }
     else
     {
@@ -83,6 +89,8 @@ void loop() {
     }
   }
 }
+
+
 void mathPart()
 {
   int tmp1 = atoi(temperature);
@@ -91,7 +99,6 @@ void mathPart()
   printHumidity = hum1;
   printTemperature2 = tmp2;
   celsius = tmp1 * 0.0625;
-  fff = ((celsius * 9 / 5) + 32);
   if (celsius > alarmSet) {
     digitalWrite(6, HIGH);    // This writes a high to a pin or 5v
   }
@@ -122,6 +129,7 @@ void sdCard()
   {
     initializeCard();
   }
+
   File dataFile = SD.open(fileName, FILE_WRITE);
   // if the file is available, write to it:
   if (dataFile) {
@@ -136,20 +144,23 @@ void sdCard()
     dataFile.println(celsius);
     dataFile.close();
     // print to the serial port too:
+
   }
+
   // if the file isn't open, pop up an error:
   else {
     Serial.print("error opening ");
     Serial.println(fileName);
   }
-  delay(100);
+  delay(10);
+
   count ++;
 }
 
 
 void printToLCD()
 {
-  if (celsius != lastcelsius || printHumidity != lastprintHumidity || fff != lastfff)
+  if (celsius != lastcelsius || printHumidity != lastprintHumidity)
     lcd.clear();
   // Display celsius on the top row
   lcd.setCursor(0, 0);
@@ -163,8 +174,7 @@ void printToLCD()
   lcd.print(printHumidity);
   lastcelsius = celsius;
   lastprintHumidity = printHumidity;
-  lastfff = fff;
-  lastButtonState = reading;
+
 }
 
 
