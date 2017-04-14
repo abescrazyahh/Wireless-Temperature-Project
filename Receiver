@@ -4,13 +4,26 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
+#include <Time.h>
 
 const int chipSelect = 8;
 const int cardDetect = 9;
 bool alreadyBegan = false;  // SD.begin() misbehaves if not first call
-char fileName[] = "demoFile.txt";
-
+char fileName[] = "DataFile.txt";
+const int buttonPin = 4;
+long previousMillis = 0;        // will store last time LED was updated
+int buttonState = LOW;             // the current reading from the input pin
+int lastButtonState = HIGH;   // the previous reading from the input pin
+long interval = 1000;           // interval at which to blink (milliseconds)
+long lastDebounceTime = 0;  // the last time the output pin was toggled
+long debounceDelay = 50;    // the debounce time; increase if the output flickers
+int reading;
+int ledState = LOW;
 float celsius;
+float fff;
+int x;
+int count = 0;
+float lastfff;
 float lastcelsius;
 float printHumidity;
 float lastprintHumidity;
@@ -38,7 +51,7 @@ void setup() {
   Serial.begin(115200);
   attachInterrupt(0, cw, FALLING);
   attachInterrupt(1, ccw, FALLING);
-  
+
   // set up the LCD's number of columns and rows:
   pinMode(6, OUTPUT);
 
@@ -60,6 +73,7 @@ void loop() {
       mathPart();
       sdCard();
       alarmPrintToLCD();
+
       printToLCD();
     }
     else
@@ -77,6 +91,7 @@ void mathPart()
   printHumidity = hum1;
   printTemperature2 = tmp2;
   celsius = tmp1 * 0.0625;
+  fff = ((celsius * 9 / 5) + 32);
   if (celsius > alarmSet) {
     digitalWrite(6, HIGH);    // This writes a high to a pin or 5v
   }
@@ -102,6 +117,7 @@ void alarmPrintToLCD()
 
 void sdCard()
 {
+
   if (!digitalRead(cardDetect))
   {
     initializeCard();
@@ -109,8 +125,15 @@ void sdCard()
   File dataFile = SD.open(fileName, FILE_WRITE);
   // if the file is available, write to it:
   if (dataFile) {
+    dataFile.print(count);
+    dataFile.print(",");
+    dataFile.print("Humidity");
+    dataFile.print(",");
+    dataFile.print(printHumidity);
+    dataFile.print(",");
+    dataFile.print("Celsius");
+    dataFile.print(",");
     dataFile.println(celsius);
-    dataFile.println(printHumidity);
     dataFile.close();
     // print to the serial port too:
   }
@@ -120,27 +143,30 @@ void sdCard()
     Serial.println(fileName);
   }
   delay(100);
+  count ++;
 }
 
 
 void printToLCD()
 {
-  if (celsius != lastcelsius || printHumidity != lastprintHumidity)
-  {
+  if (celsius != lastcelsius || printHumidity != lastprintHumidity || fff != lastfff)
     lcd.clear();
-    // Display celsius on the top row
-    lcd.setCursor(0, 0);
-    lcd.print("  Temp   = ");
-    lcd.print(celsius);
+  // Display celsius on the top row
+  lcd.setCursor(0, 0);
+  lcd.print("Temp (");
+  lcd.print((char)223);
+  lcd.print("C) = ");
+  lcd.print(celsius);
 
-    lcd.setCursor(0, 1);
-    lcd.print("Humidity = ");
-    lcd.print(printHumidity);
-    lastcelsius = celsius;
-    lastprintHumidity = printHumidity;
-  }
-
+  lcd.setCursor(0, 1);
+  lcd.print("Humidity  = ");
+  lcd.print(printHumidity);
+  lastcelsius = celsius;
+  lastprintHumidity = printHumidity;
+  lastfff = fff;
+  lastButtonState = reading;
 }
+
 
 void processLine(char *s)
 {
@@ -210,7 +236,6 @@ void ccw()
 void initializeCard(void)
 {
   Serial.print(F("Initializing SD card..."));
-
   // Is there even a card?
   if (!digitalRead(cardDetect))
   {
@@ -220,6 +245,7 @@ void initializeCard(void)
     lcd.print("   No SD Card");
     lcd.setCursor(0, 1);
     lcd.print("    Stand by ");
+    count = 0;
     Serial.println(F("No card detected. Waiting for card."));
     while (!digitalRead(cardDetect));
     delay(100); // 'Debounce insertion'
@@ -249,7 +275,3 @@ void initializeCard(void)
   Serial.print("Opening file: ");
   Serial.println(fileName);
 }
-
-
-
-
