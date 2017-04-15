@@ -12,10 +12,11 @@ unsigned long SD_Period = (5 * 1000);
 unsigned long refresh_LCD_Time;
 unsigned long refresh_SD_Time;
 
-const int chipSelect = 8;
-const int cardDetect = 9;
+const int chipSelect = 4;
+const int cardDetect = 7;
+
 bool alreadyBegan = false;  // SD.begin() misbehaves if not first call
-char fileName[] = "AbeFile.txt";
+char fileName[] = "tmpfile.txt";
 float celsius;
 int count = 0;
 float lastcelsius;
@@ -39,20 +40,21 @@ void setup() {
   lcd.init();
   lcd.backlight();
   Wire.begin();
-
   pinMode(cardDetect, INPUT);
   Serial.begin(115200);
   attachInterrupt(0, cw, FALLING);
   attachInterrupt(1, ccw, FALLING);
-
   current_Time = millis();
   refresh_LCD_Time = current_Time + LCD_Period;
   refresh_SD_Time = current_Time + SD_Period;
-
   pinMode(6, OUTPUT);
-  pinMode(10, OUTPUT);
+  pinMode(5, OUTPUT);
+
 }
+
 void loop() {
+
+
   current_Time = millis ();
   if (Serial.available() > 0)
   {
@@ -72,18 +74,20 @@ void loop() {
   {
     initializeCard();
   }
-  
       if ( current_Time > refresh_LCD_Time)
       {
         refresh_LCD_Time += LCD_Period;
         printToLCD();
       }
+
       if ( current_Time > refresh_SD_Time)
       {
         refresh_SD_Time += SD_Period;
-        digitalWrite(10, HIGH);
+     
+        digitalWrite(5, HIGH);
         sdCard();
-        digitalWrite(10, LOW);
+        delay(100);
+        digitalWrite(5, LOW);
       }
 
     }
@@ -130,10 +134,10 @@ void alarmPrintToLCD()
 void sdCard()
 {
 
-
   File dataFile = SD.open(fileName, FILE_WRITE);
   // if the file is available, write to it:
   if (dataFile) {
+
     dataFile.print(count);
     dataFile.print(",");
     dataFile.print("Humidity");
@@ -145,23 +149,18 @@ void sdCard()
     dataFile.println(celsius);
     dataFile.close();
     // print to the serial port too:
-
   }
-
   // if the file isn't open, pop up an error:
   else {
     Serial.print("error opening ");
     Serial.println(fileName);
   }
-  delay(10);
-
-  count ++;
+count ++;
 }
 
 
 void printToLCD()
 {
-  
   if (celsius != lastcelsius || printHumidity != lastprintHumidity)
     lcd.clear();
   // Display celsius on the top row
@@ -176,8 +175,8 @@ void printToLCD()
   lcd.print(printHumidity);
   lastcelsius = celsius;
   lastprintHumidity = printHumidity;
-
 }
+
 
 
 void processLine(char *s)
@@ -226,25 +225,6 @@ void processLine(char *s)
   }
 }
 
-
-void cw()
-{
-  int b = digitalRead(3);
-  if (b == HIGH)
-  {
-    alarmSet++;
-  }
-}
-
-void ccw()
-{
-  int a = digitalRead(2);
-  if (a == HIGH)
-  {
-    alarmSet--;
-  }
-}
-
 void initializeCard(void)
 {
   Serial.print(F("Initializing SD card..."));
@@ -287,3 +267,22 @@ void initializeCard(void)
   Serial.print("Opening file: ");
   Serial.println(fileName);
 }
+
+void cw()
+{
+  int b = digitalRead(3);
+  if (b == HIGH)
+  {
+    alarmSet++;
+  }
+}
+
+void ccw()
+{
+  int a = digitalRead(2);
+  if (a == HIGH)
+  {
+    alarmSet--;
+  }
+}
+
