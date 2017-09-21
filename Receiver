@@ -54,7 +54,6 @@ void setup() {
 
 void loop() {
 
-
   current_Time = millis ();
   if (Serial.available() > 0)
   {
